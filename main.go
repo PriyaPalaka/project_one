@@ -32,12 +32,6 @@ func signinHandler(w http.ResponseWriter, r *http.Request) {
 	signinTmpl.Execute(w, nil)
 }
 
-func dashboardHandler(w http.ResponseWriter, r *http.Request) {
-	dashboardTmpl := template.Must(template.ParseFiles("templates/dashboard.html"))
-
-	dashboardTmpl.Execute(w, nil)
-}
-
 func homeHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "hello World!")
 }
@@ -112,8 +106,8 @@ func loginAccountHandler(w http.ResponseWriter, r *http.Request) {
 			if password == accountExists.password {
 				feedback.ErrorMsg = ""
 				// signinTmpl.Execute(w, feedback)
-				userName := map[string]interface{}{"Username": accountExists.username}
-				dashboardTmpl.Execute(w, userName)
+				// userName := map[string]interface{}{"Username": accountExists.username}
+				dashboardTmpl.Execute(w, accountExists.username)
 				// fmt.Fprintf(w, "Login sucessful")
 				return
 			} else {
@@ -128,7 +122,6 @@ func loginAccountHandler(w http.ResponseWriter, r *http.Request) {
 
 	if !emailFound {
 		feedback.SuccessMsg = ""
-		feedback.ErrorMsg = "Email Not Found"
 		signinTmpl.Execute(w, feedback)
 
 	}
@@ -139,7 +132,7 @@ func main() {
 	http.HandleFunc("/", homeHandler)
 	http.HandleFunc("/signup", signupHandler)
 	http.HandleFunc("/signin", signinHandler)
-	http.HandleFunc("/dashbord", dashboardHandler)
+
 	http.HandleFunc("/createAccount", createAccountHandler)
 	http.HandleFunc("/loginAccount", loginAccountHandler)
 	fmt.Println("Server running on 40000")
