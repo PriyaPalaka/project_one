@@ -1,10 +1,13 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"html/template"
 	"log"
 	"net/http"
+
+	_ "github.com/go-sql-driver/mysql"
 )
 
 var db []Signup
@@ -42,6 +45,12 @@ func createAccountHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	dbconn, err := connect_db()
+	if err != nil {
+		panic(err)
+	}
+	defer dbconn.Close()
+
 	feedback := CreateAccountFeedback{
 		ErrorMsg:   "Passwords doesn't match",
 		SuccessMsg: "Account created!",
@@ -53,7 +62,6 @@ func createAccountHandler(w http.ResponseWriter, r *http.Request) {
 	email := r.FormValue("emailName")
 	password := r.FormValue("passName")
 	repassword := r.FormValue("Re-enterName")
-	fmt.Println(name, email, password, repassword)
 
 	if password != repassword {
 		feedback.SuccessMsg = ""
@@ -61,21 +69,21 @@ func createAccountHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for _, account := range db {
-		if email == account.email {
-			feedback.SuccessMsg = ""
-			feedback.ErrorMsg = "Account already exists"
-			signupTmpl.Execute(w, feedback)
-			return
-		}
+	row := dbconn.QueryRow("select user_id from user_accounts where email = ?", email)
+	var id int
+	row.Scan(&id)
+	if id > 0 {
+		feedback.SuccessMsg = ""
+		feedback.ErrorMsg = "Account already exists"
+		signupTmpl.Execute(w, feedback)
+		return
 	}
 
-	newAccount := Signup{
-		username: name,
-		email:    email,
-		password: password,
+	_, err = dbconn.Exec("insert into user_accounts(username, email, password) values(?, ?, ?)", name, email, password)
+	if err != nil {
+		fmt.Println("Error inserting data", err)
+		return
 	}
-	db = append(db, newAccount)
 
 	feedback.ErrorMsg = ""
 	signupTmpl.Execute(w, feedback)
@@ -128,7 +136,16 @@ func loginAccountHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func connect_db() (*sql.DB, error) {
+	return sql.Open("mysql", "admin:password@tcp(localhost:3306)/todo")
+}
+
 func main() {
+	db, err := connect_db()
+	if err != nil {
+		panic(err)
+	}
+	db.Close()
 	http.HandleFunc("/", homeHandler)
 	http.HandleFunc("/signup", signupHandler)
 	http.HandleFunc("/signin", signinHandler)
