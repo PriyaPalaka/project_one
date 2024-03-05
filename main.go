@@ -10,13 +10,13 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-var db []Signup
+// var db []Signup
 
-type Signup struct {
-	username string
-	email    string
-	password string
-}
+// type Signup struct {
+// 	username string
+// 	email    string
+// 	password string
+// }
 
 type CreateAccountFeedback struct {
 	ErrorMsg   string
@@ -96,6 +96,12 @@ func loginAccountHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	dbconn, err := connect_db()
+	if err != nil {
+		panic(err)
+	}
+	defer dbconn.Close()
+
 	feedback := CreateAccountFeedback{
 		ErrorMsg:   "Invalid Login Credentials",
 		SuccessMsg: "Login Successful!",
@@ -105,33 +111,22 @@ func loginAccountHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	email := r.FormValue("emailName")
 	password := r.FormValue("passwordName")
-	fmt.Println(email, password)
+	// fmt.Println(email, password)
 
-	emailFound := false
-	for _, accountExists := range db {
-		if email == accountExists.email {
-			emailFound = true
-			if password == accountExists.password {
-				feedback.ErrorMsg = ""
-				// signinTmpl.Execute(w, feedback)
-				// userName := map[string]interface{}{"Username": accountExists.username}
-				dashboardTmpl.Execute(w, accountExists.username)
-				// fmt.Fprintf(w, "Login sucessful")
-				return
-			} else {
-				// fmt.Fprintf(w, "Invalid input")
-				feedback.SuccessMsg = ""
-				signinTmpl.Execute(w, feedback)
-				return
-			}
+	rows := dbconn.QueryRow("select user_id, username from user_accounts where email = ? and password = ?", email, password)
+	var id int
+	var username string
+	rows.Scan(&id, &username)
 
-		}
-	}
-
-	if !emailFound {
+	if id > 0 {
+		feedback.ErrorMsg = ""
+		dashboardTmpl.Execute(w, map[string]interface{}{"Username": username})
+		return
+	} else {
+		// fmt.Fprintf(w, "Invalid input")
 		feedback.SuccessMsg = ""
 		signinTmpl.Execute(w, feedback)
-
+		return
 	}
 
 }
